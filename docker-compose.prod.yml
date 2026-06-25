@@ -1,0 +1,93 @@
+# Full containerized stack: infra + all five services + the React frontend.
+# One-command spin-up:   docker compose -f docker-compose.prod.yml up --build
+# Then open the app at    http://localhost:3000
+#
+# Everything talks over the internal Docker network; only the frontend (3000) and the
+# gateway (8086, for debugging) are published to the host. H2 keeps each service's data
+# in-memory, so no database container is needed.
+services:
+  kafka:
+    image: apache/kafka:3.8.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+
+  inventory-service:
+    build: { context: ., args: { MODULE: inventory-service } }
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on:
+      kafka: { condition: service_healthy }
+
+  payment-service:
+    build: { context: ., args: { MODULE: payment-service } }
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on:
+      kafka: { condition: service_healthy }
+
+  shipping-service:
+    build: { context: ., args: { MODULE: shipping-service } }
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on:
+      kafka: { condition: service_healthy }
+
+  order-service:
+    build: { context: ., args: { MODULE: order-service } }
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on:
+      kafka: { condition: service_healthy }
+
+  gateway:
+    build: { context: ., args: { MODULE: gateway } }
+    ports:
+      - "8086:8080"
+    environment:
+      INVENTORY_URI: http://inventory-service:8081
+      ORDER_URI: http://order-service:8082
+      REDIS_HOST: redis
+      RATE_LIMIT_ENABLED: "true"
+      JWT_SECRET: change-me-in-prod-this-is-a-demo-secret-key-0123456789
+    depends_on:
+      - inventory-service
+      - order-service
+      - redis
+
+  frontend:
+    build: { context: ./frontend }
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8091:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      - kafka

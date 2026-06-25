@@ -1,0 +1,49 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+              - "http://localhost:3000"
+            allowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+            allowedHeaders: "*"
+
+# Downstream service locations (overridden by env in docker-compose)
+services:
+  inventory:
+    uri: ${INVENTORY_URI:http://localhost:8081}
+  order:
+    uri: ${ORDER_URI:http://localhost:8082}
+
+# Edge rate limiting (Redis-backed). Off by default so the gateway runs without Redis locally;
+# docker-compose turns it on.
+gateway:
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:false}
+    replenish-rate: 10
+    burst-capacity: 20
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-prod-this-is-a-demo-secret-key-0123456789}
+    ttl-minutes: 120
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

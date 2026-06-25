@@ -1,0 +1,55 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: payment-service
+  datasource:
+    url: jdbc:h2:mem:paymentdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: payment-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# PayU hosted-checkout (test environment). Secrets come from the environment in real deployments;
+# the defaults here are PayU test-merchant credentials for local development only — do NOT commit
+# production credentials. surl/furl point straight at this service (port 8083), bypassing the
+# gateway, because PayU posts the callback through the customer's browser (no JWT available).
+payu:
+  payment-url: ${PAYU_PAYMENT_URL:https://test.payu.in/_payment}
+  # Secrets MUST be supplied via environment (no committed defaults). Set PAYU_KEY / PAYU_SALT in
+  # your deployment platform's secret store (or a local, gitignored .env — see .env.example).
+  key: ${PAYU_KEY:}
+  salt: ${PAYU_SALT:}
+  surl: ${PAYU_SURL:http://localhost:8083/payments/payu/callback}
+  furl: ${PAYU_FURL:http://localhost:8083/payments/payu/callback}
+  frontend-return-url: ${PAYU_RETURN_URL:http://localhost:5173}
+  default-email: ${PAYU_DEFAULT_EMAIL:test@example.com}
+  default-phone: ${PAYU_DEFAULT_PHONE:9999999999}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always

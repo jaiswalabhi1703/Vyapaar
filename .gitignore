@@ -1,0 +1,30 @@
+# Java / Maven
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# Secrets / local env (never commit real credentials). .env.example IS committed.
+# Anchored to repo root so the non-secret frontend/.env (just VITE_API_BASE) stays tracked.
+/.env
+/.env.*
+!/.env.example
+frontend/.env.local
+application-local.yml
+application-local.yaml
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
