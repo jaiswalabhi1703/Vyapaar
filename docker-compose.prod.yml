@@ -42,6 +42,12 @@ services:
     build: { context: ., args: { MODULE: payment-service } }
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
+      PAYU_KEY: ${PAYU_KEY:-}
+      PAYU_SALT: ${PAYU_SALT:-}
+      PAYU_PAYMENT_URL: ${PAYU_PAYMENT_URL:-https://test.payu.in/_payment}
+      PAYU_SURL: ${PAYU_SURL:-http://localhost:8083/payments/payu/callback}
+      PAYU_FURL: ${PAYU_FURL:-http://localhost:8083/payments/payu/callback}
+      PAYU_RETURN_URL: ${PAYU_RETURN_URL:-http://localhost:3000}
     depends_on:
       kafka: { condition: service_healthy }
 
@@ -68,7 +74,7 @@ services:
       ORDER_URI: http://order-service:8082
       REDIS_HOST: redis
       RATE_LIMIT_ENABLED: "true"
-      JWT_SECRET: change-me-in-prod-this-is-a-demo-secret-key-0123456789
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-prod-this-is-a-demo-secret-key-0123456789}
     depends_on:
       - inventory-service
       - order-service
@@ -77,9 +83,10 @@ services:
   frontend:
     build: { context: ./frontend }
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - gateway
+      - payment-service
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
